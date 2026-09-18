@@ -50,8 +50,13 @@ def cmd_goal(args):
         criteria = [goalmod.parse_criterion(c) for c in (args.criterion or [])]
         if not criteria:
             raise SystemExit("--set needs at least one --criterion name:weight:rubric")
+        was_fresh = [s for s in goalmod.latest_scores().values()
+                     if not goalmod.is_stale(s, goalmod.current_goal())]
         goalmod.set_goal(args.set, criteria)
         print(f"goal set, {len(criteria)} criteria")
+        if was_fresh:
+            print(f"{len(was_fresh)} score(s) now judged against an older goal — "
+                  f"`note check` lists them")
         return
     g = goalmod.current_goal()
     if not g:
@@ -87,18 +92,26 @@ def cmd_score(args):
     print(f"{goalmod.add_score(args.id, scores, args.note):.3f}")
 
 
+def _stale_mark(score, g):
+    return "  STALE — judged against an older goal" if goalmod.is_stale(score, g) else ""
+
+
 def cmd_goals(args):
     rows, unassigned = goalmod.rollup()
+    g = goalmod.current_goal()
     for n, best in rows:
         if best:
-            total, aid, ts = best
-            print(f"{n['id']:>4}  {n['content']}\n        best {total:.3f} from #{aid} ({ts})")
+            total, aid, score = best
+            mark = _stale_mark(score, g)
+            print(f"{n['id']:>4}  {n['content']}\n"
+                  f"        best {total:.3f} from #{aid} ({score['timestamp']}){mark}")
         else:
             print(f"{n['id']:>4}  {n['content']}\n        (no scored attempts)")
     if unassigned:
         print("\n(unassigned) — scored but targeting no goal:")
-        for n, total, ts in unassigned:
-            print(f"{n['id']:>4}  {total:.3f}  {n['content']} ({ts})")
+        for n, total, score in unassigned:
+            print(f"{n['id']:>4}  {total:.3f}  {n['content']} "
+                  f"({score['timestamp']}){_stale_mark(score, g)}")
 
 
 def cmd_supersede(args):
@@ -109,9 +122,9 @@ def cmd_supersede(args):
 def cmd_check(args):
     """Exit nonzero while any attempt is loose, so a hook or an agent can gate
     on it rather than trusting itself to remember the loop."""
-    untargeted, unscored = goalmod.unfinished()
-    if not untargeted and not unscored:
-        print("clean: every attempt targets a goal and carries a score")
+    untargeted, unscored, stale = goalmod.unfinished()
+    if not untargeted and not unscored and not stale:
+        print("clean: every attempt targets a goal and is scored against the current one")
         return
     if untargeted:
         print("attempts targeting no goal — `note link <id> <goal> --rel targets`:")
@@ -120,6 +133,11 @@ def cmd_check(args):
     if unscored:
         print("attempts with no score — `note score <id> name=0.0-1.0`:")
         for n in unscored:
+            print(_line(n))
+    if stale:
+        print("attempts judged against an older goal — their totals are "
+              "arithmetic, not judgement. Re-score them:")
+        for n in stale:
             print(_line(n))
     raise SystemExit(1)
 
@@ -152,7 +170,8 @@ def cmd_show(args):
     if s:
         g = goalmod.current_goal()
         total = goalmod.weighted_total(s["scores"], g["criteria"] if g else [])
-        print(f"  score: {total:.3f}  {s['scores']}  ({s['timestamp']})")
+        print(f"  score: {total:.3f}  {s['scores']}  ({s['timestamp']})"
+              f"{_stale_mark(s, g)}")
         if s.get("note"):
             print(f"         {s['note']}")
     if args.id in {m["id"] for m in graphmod.merges(nodes, edges)}:

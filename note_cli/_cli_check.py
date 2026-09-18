@@ -78,7 +78,32 @@ def main_check():
     after = {n["id"] for n in graphtails()}
     assert 5 not in after and 6 in after, (before, after)
 
+    # supersede does NOT carry the targets edge forward, so `check` flags the
+    # correction as untargeted until it is re-linked. See TODO.
+    run("link", "6", "1", "--rel", "targets")
+    run("score", "6", "consistency=0.5")
+
     run("status")
+
+    # the bug this feature exists for: moving the goal must not leave a
+    # confident-looking number with `check` calling it clean
+    import time
+    time.sleep(1)                       # timestamps are second-resolution
+    run("goal", "--set", "moved the bar",
+        "--criterion", "consistency:3:style holds",
+        "--criterion", "renamed:1:was legibility")
+    try:
+        run("check")
+        raise AssertionError("expected SystemExit(1): every score is now stale")
+    except SystemExit as e:
+        assert e.code == 1, e.code
+    run("goals")                        # must mark the stale rows, not just print
+    run("show", "3")
+
+    for nid in ("2", "3", "4", "5", "6"):
+        run("score", nid, "consistency=0.5", "renamed=0.5")
+    run("check")                        # re-scored under the new goal: clean again
+
 
     # --version must report what the package metadata says, so a bug report
     # names a real release

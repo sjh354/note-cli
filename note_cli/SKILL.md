@@ -37,8 +37,10 @@ to agents working other branches in parallel.
 - **Only criteria named in the current goal are accepted.** If a rubric no
   longer fits the work, change the goal (`note goal --set ... --criterion ...`)
   rather than inventing a criterion at score time.
-- **Totals are recomputed against the current goal.** When the goal moves, old
-  attempts visibly drop until they are re-judged. That is correct.
+- **Totals are recomputed against the current goal**, so when the goal moves,
+  every earlier score is marked `STALE` and `note check` fails until you
+  re-score. A stale total is arithmetic, not judgement — do not compare arms
+  on one. `note goal --set` tells you how many scores it just invalidated.
 
 ## Correcting a node
 

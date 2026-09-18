@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0 — unreleased
+
+- **Stale scores are now visible.** Totals have always been recomputed against
+  the current goal, but nothing marked a score made against an older revision:
+  renaming a criterion silently moved an attempt from `1.000` to `0.500` while
+  `note check` still reported everything clean. Score lines now carry the goal
+  revision they were judged against; `note check` fails on a stale one,
+  `note goals` and `note show` mark it, and `note goal --set` reports how many
+  scores it just invalidated. A score written before this release has no
+  revision recorded and reads stale, which is the honest answer.
+
 ## 0.2.0 — 2026-09-18
 
 - `note supersede <id> "content"` — append-only has no edit, so a correction is
