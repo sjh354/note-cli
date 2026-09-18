@@ -81,6 +81,39 @@ def now():
 
 
 
+def current_branch():
+    """The branch this node was written from. In a shared store, "which arm
+    is this" is otherwise lost. Detached HEAD (a worktree mid-rebase, for
+    one) prints nothing, so fall back to the short SHA."""
+    b = _git("branch", "--show-current")
+    return b or _git("rev-parse", "--short", "HEAD")
+
+
+def add_node(content, type="note", tags=()):
+    with write_lock():
+        nodes = read("nodes.jsonl")
+        # max, not last: immune to a hand-edited file, same cost
+        nid = max((n["id"] for n in nodes), default=0) + 1
+        append("nodes.jsonl", {
+            "id": nid,
+            "content": content,
+            "type": type,
+            "tags": list(tags),
+            "branch": current_branch(),
+            "timestamp": now(),
+        })
+    return nid
+
+
+def add_edge(src, dst, relation):
+    with write_lock():
+        ids = {n["id"] for n in read("nodes.jsonl")}
+        for i in (src, dst):
+            if i not in ids:
+                raise SystemExit(f"no node {i}")
+        append("edges.jsonl", {"from": src, "to": dst, "relation": relation})
+
+
 def demo():
     import tempfile
     d = tempfile.mkdtemp()
@@ -104,6 +137,32 @@ def demo():
         assert locked == path
 
     assert "T" in now()
+
+    a = add_node("first attempt", type="attempt", tags=["arm-b1"])
+    g = add_node("legible text at 512px", type="goal")
+    assert (a, g) == (2, 3), (a, g)          # id 1 was written by hand above
+
+    rows = {n["id"]: n for n in read("nodes.jsonl")}
+    assert rows[a]["type"] == "attempt"
+    assert rows[a]["tags"] == ["arm-b1"]
+    assert rows[a]["branch"], "branch must never be empty"   # name varies by git config
+    assert "timestamp" in rows[a]
+
+    add_edge(a, g, "targets")
+    assert read("edges.jsonl") == [{"from": a, "to": g, "relation": "targets"}]
+
+    try:
+        add_edge(a, 999, "leads_to")
+        raise AssertionError("expected SystemExit for a nonexistent node")
+    except SystemExit as e:
+        assert "999" in str(e), e
+
+    # detached HEAD must not produce an empty branch field
+    subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "x"], check=True)
+    head = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+    subprocess.run(["git", "checkout", "-q", head], check=True)
+    assert current_branch(), "detached HEAD must fall back to a short SHA"
+
     print("store: ok")
 
 
