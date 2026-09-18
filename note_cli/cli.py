@@ -1,7 +1,16 @@
 import argparse
 import shutil
+import sys
 from pathlib import Path
 
+if not hasattr(__import__("os"), "fork"):
+    # store.py locks with fcntl.flock, which Windows has no equivalent of.
+    # pip installs regardless of the POSIX classifier, so say so plainly
+    # instead of letting `import fcntl` raise ModuleNotFoundError.
+    sys.exit("note requires a POSIX system (Linux, macOS, WSL): it locks the "
+             "store with fcntl.flock, which Windows does not provide.")
+
+from note_cli import __version__
 from note_cli import goal as goalmod
 from note_cli import graph as graphmod
 from note_cli import render, store
@@ -216,6 +225,7 @@ def cmd_skill(args):
 
 def build_parser():
     p = argparse.ArgumentParser(prog="note", description=__doc__)
+    p.add_argument("--version", action="version", version=f"note {__version__}")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("init", help="create the store").set_defaults(fn=cmd_init)

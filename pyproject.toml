@@ -4,13 +4,46 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "note-cli"
-version = "0.1.0"
-description = "Decision-graph and goal notebook for a git repo, shared across worktrees"
+version = "0.2.0"
+description = "Decision-graph and goal notebook for a git repo, shared across every worktree"
+readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.9"
+authors = [{ name = "송재훈", email = "sjh030504@i-screammedia.com" }]
+keywords = ["git", "worktree", "notebook", "decision-graph", "agent", "cli"]
 dependencies = []
+
+# POSIX only: store.py locks with fcntl.flock, which does not exist on Windows.
+# Classifiers are metadata, not install constraints, so cli.py also fails fast
+# with an explanation rather than a bare ModuleNotFoundError.
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: POSIX",
+  "Operating System :: MacOS :: MacOS X",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Version Control :: Git",
+  "Topic :: Utilities",
+]
+
+[project.urls]
+Homepage = "https://github.com/sjh354/note-cli"
+Source = "https://github.com/sjh354/note-cli"
+Issues = "https://github.com/sjh354/note-cli/issues"
+Changelog = "https://github.com/sjh354/note-cli/blob/main/CHANGELOG.md"
 
 [project.scripts]
 note = "note_cli.cli:main"
+
+[project.optional-dependencies]
+dev = ["build", "twine"]
 
 [tool.setuptools]
 packages = ["note_cli"]

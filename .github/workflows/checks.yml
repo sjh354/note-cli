@@ -1,0 +1,44 @@
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # This matrix is the only evidence for `requires-python` in
+        # pyproject.toml. Widen or narrow the two together.
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -e .
+      - name: module self-checks
+        run: |
+          for m in store graph goal render; do python -m note_cli.$m; done
+      - name: concurrency (forks 8 processes; must yield 8 distinct ids)
+        run: python -m note_cli._concurrency_check
+      - name: end-to-end CLI
+        run: python -m note_cli._cli_check
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install build twine
+      - run: python -m build
+      - run: python -m twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
