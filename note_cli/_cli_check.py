@@ -89,7 +89,7 @@ def main_check():
     except SystemExit as e:
         assert e.code == 0, e.code
     import importlib.metadata as md
-    assert __version__ == md.version("note-cli"), (__version__, md.version("note-cli"))
+    assert __version__ == md.version("notegraph"), (__version__, md.version("notegraph"))
 
     print("cli: ok")
 

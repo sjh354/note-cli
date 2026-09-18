@@ -13,6 +13,9 @@
 - Fails fast with an explanation on non-POSIX systems instead of raising
   `ModuleNotFoundError: fcntl`.
 - Packaging: MIT license, full PyPI metadata, CI across Python 3.9–3.13.
+- Renamed the PyPI distribution to **notegraph**; PyPI rejects `note-cli` as
+  too similar to the existing `notecli`. The import package (`note_cli`) and
+  the command (`note`) are unchanged.
 
 ## 0.1.0 — 2026-09-18
 

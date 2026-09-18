@@ -3,6 +3,11 @@
 Publishing runs on a `v*` tag via `.github/workflows/release.yml`, using PyPI
 **Trusted Publishing** — there is no API token to create or store.
 
+The PyPI distribution is `notegraph`; the GitHub repo is still `note-cli` and
+the command is still `note`. PyPI rejected `note-cli` as too similar to the
+existing `notecli`. Keep the three straight when filling the form below — the
+"Repository name" field wants the GitHub repo, not the package.
+
 ## One-time setup (a human must do this; it cannot be scripted from here)
 
 1. Create the project on PyPI, or claim the name: <https://pypi.org/manage/account/publishing/>
@@ -10,7 +15,7 @@ Publishing runs on a `v*` tag via `.github/workflows/release.yml`, using PyPI
 
    | Field | Value |
    |---|---|
-   | PyPI project name | `note-cli` |
+   | PyPI project name | `notegraph` |
    | Owner | `sjh354` |
    | Repository name | `note-cli` |
    | Workflow name | `release.yml` |
@@ -43,5 +48,5 @@ publish step. Nothing else breaks.
 5. Commit, tag, push:
 
        git commit -am "release: 0.x.0"
-       git tag -a v0.x.0 -m "note-cli 0.x.0"
+       git tag -a v0.x.0 -m "notegraph 0.x.0"
        git push origin main && git push origin v0.x.0
