@@ -207,6 +207,9 @@ stale one is identifiable rather than merely suspicious.
 | `note search <keyword>` | Case-insensitive substring match over content/tags |
 | `note trace <id> [--up\|--down\|--both]` (default `--down`) | DFS from `<id>`, printed as an indented text tree; follows `targets`; visited-set guards against cycles |
 | `note heads` / `note tails` | List derived in-degree-0 / out-degree-0 nodes, ignoring `targets` edges and skipping `type: goal` nodes |
+| `note status` | Goal, criteria, per-goal best attempt and the frontier in one screen |
+| `note check` | Exit 1 naming every attempt that targets no goal or carries no score; exit 0 and say so when clean |
+| `note supersede <id> "content" [--type T] [--tags a,b]` | Append a correcting node plus `old -superseded_by-> new`; type and tags are inherited unless given |
 | `note skill --install` | Copy the packaged `SKILL.md` to `~/.claude/skills/note/SKILL.md`, overwriting; print the path written |
 | `note graph [--from <id>] [--depth N]` | Emit Graphviz DOT to `<store>/graph.dot`; if the `dot` binary is present, also render `.svg`, otherwise just leave the `.dot` file and print a note about installing graphviz |
 
@@ -225,6 +228,22 @@ start — it is a re-entry into a store that already holds everyone's work.
 Truncating there would silently destroy the shared graph, which is the one
 irreversible failure this design can produce. `init` creates only what is
 missing and says so.
+
+### Correcting a node (added after v0.1.0)
+
+Append-only has no edit, so a correction is a new node plus an edge. The edge
+runs **`old -superseded_by-> new`**, not `new -supersedes-> old`. With the
+latter direction the corrected node would have out-degree 0 and surface in
+`tails` as the working frontier, which is backwards; this way the new node is
+the frontier and the old one drops out of it.
+
+### Enforcing the loop (added after v0.1.0)
+
+`SKILL.md` tells an agent to score its attempts, but nothing made that
+checkable. `note check` reports every `attempt`-typed node that targets no goal
+or carries no score and exits 1, so a git hook or an agent's own loop can gate
+on it instead of trusting itself to remember. Only `attempt` nodes are held to
+it — a decision or a plain note has nothing to score.
 
 ## Agent skill
 

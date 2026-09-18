@@ -114,6 +114,33 @@ def add_edge(src, dst, relation):
         append("edges.jsonl", {"from": src, "to": dst, "relation": relation})
 
 
+def supersede(old, content, type=None, tags=()):
+    """Correct a node. Append-only has no edit, so a correction is a new node
+    plus an edge `old -superseded_by-> new`.
+
+    That direction is deliberate. With `new -supersedes-> old` the old node
+    would have out-degree 0 and surface in `tails` as the working frontier,
+    which is backwards. This way the NEW node is the frontier and the
+    corrected one drops out of it. Type and tags are inherited unless given.
+    """
+    with write_lock():
+        nodes = read("nodes.jsonl")
+        by_id = {n["id"]: n for n in nodes}
+        if old not in by_id:
+            raise SystemExit(f"no node {old}")
+        nid = max((n["id"] for n in nodes), default=0) + 1
+        append("nodes.jsonl", {
+            "id": nid,
+            "content": content,
+            "type": type or by_id[old]["type"],
+            "tags": list(tags) or list(by_id[old].get("tags") or []),
+            "branch": current_branch(),
+            "timestamp": now(),
+        })
+        append("edges.jsonl", {"from": old, "to": nid, "relation": "superseded_by"})
+    return nid
+
+
 def demo():
     import tempfile
     d = tempfile.mkdtemp()
@@ -162,6 +189,20 @@ def demo():
     head = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
     subprocess.run(["git", "checkout", "-q", head], check=True)
     assert current_branch(), "detached HEAD must fall back to a short SHA"
+
+    # a correction is a new node plus old -superseded_by-> new, so the NEW one
+    # is the frontier and the old one drops out of tails
+    new_id = supersede(a, "first attempt, corrected")
+    rows = {n["id"]: n for n in read("nodes.jsonl")}
+    assert rows[new_id]["content"] == "first attempt, corrected"
+    assert rows[new_id]["type"] == rows[a]["type"], "type is inherited"
+    assert rows[new_id]["tags"] == rows[a]["tags"], "tags are inherited"
+    assert {"from": a, "to": new_id, "relation": "superseded_by"} in read("edges.jsonl")
+    try:
+        supersede(999, "nope")
+        raise AssertionError("expected SystemExit")
+    except SystemExit as e:
+        assert "999" in str(e), e
 
     print("store: ok")
 

@@ -51,7 +51,40 @@ def main_check():
 
     from note_cli import store
     assert (store.store_dir() / "graph.dot").exists()
+
+    # `check` must exit nonzero while an attempt is untargeted or unscored
+    run("add", "unlinked try", "--type", "attempt")         # id 5
+    try:
+        run("check")
+        raise AssertionError("expected SystemExit(1) with a loose attempt")
+    except SystemExit as e:
+        assert e.code == 1, e.code
+    run("link", "5", "1", "--rel", "targets")
+    try:
+        run("check")
+        raise AssertionError("expected SystemExit(1) with an unscored attempt")
+    except SystemExit as e:
+        assert e.code == 1, e.code
+    run("score", "5", "consistency=0.1")
+    # node 4 was added earlier as a merge-point helper and never targeted a
+    # goal — `check` caught that, which is the point of the command
+    run("link", "4", "1", "--rel", "targets")
+    run("score", "4", "consistency=0.5")
+    run("check")                                            # now clean: must not raise
+
+    # supersede: the new node becomes the frontier, the old drops out
+    before = {n["id"] for n in graphtails()}
+    run("supersede", "5", "unlinked try, corrected")         # id 6
+    after = {n["id"] for n in graphtails()}
+    assert 5 not in after and 6 in after, (before, after)
+
+    run("status")
     print("cli: ok")
+
+
+def graphtails():
+    from note_cli import graph as g, store
+    return g.tails(store.read("nodes.jsonl"), store.read("edges.jsonl"))
 
 
 if __name__ == "__main__":

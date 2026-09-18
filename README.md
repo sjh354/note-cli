@@ -16,6 +16,10 @@ working tree and needs no `.gitignore` entry.
     note score 2 consistency=1.0 legibility=0.8 --note "best so far"
     note goals
 
+    note status                                           # everything at a glance
+    note check                                            # exit 1 if the loop is open
+    note supersede 2 "arm B1_P2, corrected"               # append-only correction
+
 Design: [`docs/superpowers/specs/2026-09-17-note-cli-design.md`](docs/superpowers/specs/2026-09-17-note-cli-design.md)
 
 For an agent working in this repo: `note skill --install`, then follow the

@@ -24,6 +24,10 @@ to agents working other branches in parallel.
    Each criterion is 0.0–1.0. The `--note` is where the justification goes;
    a score with no stated reason cannot be argued with later.
 
+6. **Confirm the loop closed.** `note check` exits nonzero while any attempt
+   targets no goal or carries no score, and names them. Run it before you
+   consider a piece of work done.
+
 ## Rules
 
 - **Never score a goal node.** Scores go on attempts. A goal's score is derived
@@ -36,8 +40,17 @@ to agents working other branches in parallel.
 - **Totals are recomputed against the current goal.** When the goal moves, old
   attempts visibly drop until they are re-judged. That is correct.
 
+## Correcting a node
+
+Nothing is ever edited in place. `note supersede <id> "corrected content"`
+appends a new node and an edge `old -superseded_by-> new`, which moves the
+frontier to the new node and takes the old one out of `note tails`. Type and
+tags are inherited unless you pass new ones.
+
 ## Orientation
 
+- `note status` — goal, criteria, per-goal best and the frontier, in one screen
+- `note check` — what still breaks the loop (exit 1 if anything does)
 - `note goals` — per-goal best attempt and which one set it
 - `note tails` — the working frontier (goal nodes excluded)
 - `note trace <id>` — what an attempt ultimately feeds
