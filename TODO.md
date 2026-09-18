@@ -11,25 +11,8 @@ keeps only the edge and goal-criterion halves.
 Item 1 is done (unreleased): the store is its own git repo, and `note sync`
 commits and pushes it once a remote is set.
 
----
-
-## 2. Every listing dumps the whole store
-
-Observed at 205 nodes: `note tails` printed 201 lines and `note graph` emitted
-a 203-node DOT file. No pagination, no filter, no limit.
-
-Disk is not the problem — 205 nodes is 40K. **Legibility is.** The commands
-meant for orientation are the first to stop orienting.
-
-**Fix, cheapest first:**
-
-- `--branch <name>` on the listing commands. The field is already on every
-  node and is the filter that matches how the work is actually split.
-- `--limit N` with newest first.
-- `note graph` defaulting to a bounded subgraph instead of everything.
-
-**Do it when:** a real store passes ~50 nodes, which is the same threshold as
-item 1.
+Item 2 is done (unreleased): `heads`/`tails` take `--branch`/`--limit`, and
+`graph` defaults to the newest 50 nodes instead of the whole store.
 
 ---
 

@@ -7,6 +7,10 @@
   pushes it once a remote is added. Previously `<repo>/.git/notes/` lived and
   died with the outer repo's working copy — `git push` on the outer repo never
   touches it.
+- **Orientation commands stop dumping the whole store.** `note heads` and
+  `note tails` take `--branch <name>` and `--limit N` (newest first). `note
+  graph` now defaults to the newest 50 nodes instead of every node ever
+  recorded; `--all` opts back into everything, `--branch` narrows further.
 
 ## 0.3.0 — 2026-09-18
 

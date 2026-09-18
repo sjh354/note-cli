@@ -25,6 +25,14 @@ def _line(n):
     return f"  {n['id']:>4}  {n['type']:<10} {n['content']}{tags}  ({n.get('branch')})"
 
 
+def _filter_nodes(nodes, branch=None, limit=None):
+    if branch:
+        nodes = [n for n in nodes if n.get("branch") == branch]
+    if limit is not None:
+        nodes = list(reversed(nodes))[:limit]     # newest first
+    return nodes
+
+
 def _print_nodes(title, nodes):
     print(title)
     for n in nodes:
@@ -211,20 +219,38 @@ def cmd_trace(args):
 
 def cmd_heads(args):
     nodes, edges = _nodes_edges()
-    _print_nodes("heads:", graphmod.heads(nodes, edges))
+    heads = _filter_nodes(graphmod.heads(nodes, edges), args.branch, args.limit)
+    _print_nodes("heads:", heads)
 
 
 def cmd_tails(args):
     nodes, edges = _nodes_edges()
-    _print_nodes("tails:", graphmod.tails(nodes, edges))
+    tails = _filter_nodes(graphmod.tails(nodes, edges), args.branch, args.limit)
+    _print_nodes("tails:", tails)
+
+
+DEFAULT_GRAPH_LIMIT = 50
 
 
 def cmd_graph(args):
     nodes, edges = _nodes_edges()
     if args.frm is not None:
         keep = graphmod.subgraph(args.frm, edges, args.depth)
-        nodes = [n for n in nodes if n["id"] in keep]
+    elif args.all:
+        keep = None
+    else:
+        limit = args.limit or DEFAULT_GRAPH_LIMIT
+        keep = {n["id"] for n in nodes[-limit:]}
+    if args.branch:
+        branch_ids = {n["id"] for n in nodes if n.get("branch") == args.branch}
+        keep = branch_ids if keep is None else keep & branch_ids
+    if keep is not None:
+        kept_nodes = [n for n in nodes if n["id"] in keep]
         edges = [e for e in edges if e["from"] in keep and e["to"] in keep]
+        if len(kept_nodes) < len(nodes):
+            print(f"{len(kept_nodes)} of {len(nodes)} nodes — "
+                  f"--all for everything, --branch/--from/--limit to narrow further")
+        nodes = kept_nodes
     src = render.dot_source(nodes, edges, goalmod.current_goal())
     dot_file, svg = render.write_graph(store.require_store(), src)
     print(f"wrote {dot_file}")
@@ -306,12 +332,23 @@ def build_parser():
     tr.add_argument("--both", dest="direction", action="store_const", const="both")
     tr.set_defaults(fn=cmd_trace, direction="down")
 
-    sub.add_parser("heads", help="in-degree-0 work nodes").set_defaults(fn=cmd_heads)
-    sub.add_parser("tails", help="the working frontier").set_defaults(fn=cmd_tails)
+    hd = sub.add_parser("heads", help="in-degree-0 work nodes")
+    hd.add_argument("--branch")
+    hd.add_argument("--limit", type=int)
+    hd.set_defaults(fn=cmd_heads)
+
+    tl = sub.add_parser("tails", help="the working frontier")
+    tl.add_argument("--branch")
+    tl.add_argument("--limit", type=int)
+    tl.set_defaults(fn=cmd_tails)
 
     gr = sub.add_parser("graph", help="emit Graphviz DOT")
     gr.add_argument("--from", dest="frm", type=int)
     gr.add_argument("--depth", type=int)
+    gr.add_argument("--branch")
+    gr.add_argument("--limit", type=int,
+                     help=f"newest N nodes (default {DEFAULT_GRAPH_LIMIT} unless --from/--all)")
+    gr.add_argument("--all", action="store_true", help="no bound — the whole store")
     gr.set_defaults(fn=cmd_graph)
 
     sub.add_parser("sync", help="commit and push the store's own git repo"

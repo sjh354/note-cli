@@ -63,3 +63,7 @@ for one.
 - `note search <keyword>` — find a node to start from
 - `note sync` — commit and push the store (its own git repo; needs a remote
   added once with `git -C <store dir> remote add origin <url>`)
+- `note heads` / `note tails` take `--branch <name>` and `--limit N` (newest
+  first) once the store gets big
+- `note graph` defaults to the newest 50 nodes; `--from <id> --depth N`,
+  `--branch <name>`, `--limit N` or `--all` narrow or widen it

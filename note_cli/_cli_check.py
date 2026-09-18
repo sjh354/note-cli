@@ -48,6 +48,17 @@ def main_check():
     run("tails")
     run("graph")
     run("graph", "--from", "2", "--depth", "1")
+    run("heads", "--branch", "master")
+    run("heads", "--limit", "1")
+    run("tails", "--branch", "master", "--limit", "1")
+    run("graph", "--branch", "master")
+    run("graph", "--limit", "2")
+    run("graph", "--all")
+
+    from note_cli.cli import _filter_nodes
+    sample = [{"id": 1, "branch": "a"}, {"id": 2, "branch": "b"}, {"id": 3, "branch": "a"}]
+    assert _filter_nodes(sample, branch="a") == [sample[0], sample[2]]
+    assert _filter_nodes(sample, limit=2) == [sample[2], sample[1]], "limit must be newest-first"
 
     from note_cli import store
     assert (store.store_dir() / "graph.dot").exists()
