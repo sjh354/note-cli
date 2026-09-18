@@ -3,30 +3,14 @@
 Ranked by what bites first, not by what is interesting. Each item says what
 was actually observed, not what might go wrong.
 
-Done since the last pass: stale scores are now detected and surfaced
-(was item 1) — see `CHANGELOG.md` 0.3.0.
+Done since the last pass, both shipped in 0.3.0: stale scores are now
+detected and surfaced, and a superseded attempt no longer wins the rollup.
+Item 3 below has lost its node half — `supersede` works properly now — and
+keeps only the edge and goal-criterion halves.
 
 ---
 
-## 1. `supersede` drops the goal link, and the old attempt keeps winning
-
-Found while fixing the stale-score bug. `note supersede <id> "corrected"`
-creates the new node and the `superseded_by` edge, but does **not** carry the
-`targets` edge forward. Two consequences:
-
-- `note check` flags the correction as targeting no goal until it is
-  re-linked by hand — noisy, but at least loud.
-- The superseded node still targets the goal and still holds its score, so
-  **`note goals` can report a corrected-away attempt as the best one.** That
-  one is silent.
-
-**Fix:** carry `targets` edges forward in `supersede`, and have `rollup()`
-skip nodes that have an outgoing `superseded_by` edge.
-
-**Do it:** next. The second consequence is the same class of silent-wrong-
-number as the bug just fixed.
-
-## 2. The store dies with the machine
+## 1. The store dies with the machine
 
 `<repo>/.git/notes/` is not carried by `git push` and does not survive a
 re-clone. The spec accepts that as a cost, and append-only means nothing is
@@ -44,7 +28,7 @@ the store is that months of decisions accumulate in it.
 
 ---
 
-## 3. Every listing dumps the whole store
+## 2. Every listing dumps the whole store
 
 Observed at 205 nodes: `note tails` printed 201 lines and `note graph` emitted
 a 203-node DOT file. No pagination, no filter, no limit.
@@ -60,18 +44,19 @@ meant for orientation are the first to stop orienting.
 - `note graph` defaulting to a bounded subgraph instead of everything.
 
 **Do it when:** a real store passes ~50 nodes, which is the same threshold as
-item 2.
+item 1.
 
 ---
 
-## 4. Append-only has an escape hatch for nodes, none for edges or criteria
+## 3. Append-only has an escape hatch for nodes, none for edges or criteria
 
 - **A wrong edge is permanent.** `note link 2 1 --rel oops` is accepted and
   there is no `note unlink`. `note supersede` covers nodes only.
 - **A goal cannot be edited in part.** Changing one weight means re-typing
   every `--criterion`, and a rubric typed slightly differently silently
-  changes the standard everything is measured against — see item 1 for what
-  that costs.
+  changes the standard everything is measured against. That now shows up as
+  `STALE` rather than as a quietly wrong number (0.3.0), but it still means
+  re-scoring everything over a typo.
 
 **Fix:** `note unlink <from> <to> [--rel R]` appending a tombstone (stay
 append-only — do not rewrite `edges.jsonl`), and `note goal --set-weight
@@ -83,7 +68,7 @@ Both are cheap then and speculative now.
 
 ---
 
-## 5. Homebrew formula — now unblocked
+## 4. Homebrew formula — now unblocked
 
 `0.2.0` is on PyPI, so the sdist URL and sha256 that a formula needs exist.
 With zero runtime dependencies there are no `resource` blocks to generate, so

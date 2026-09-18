@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "notegraph"
-version = "0.2.0"
+version = "0.3.0"
 description = "Decision-graph and goal notebook for a git repo, shared across every worktree"
 readme = "README.md"
 license = { text = "MIT" }

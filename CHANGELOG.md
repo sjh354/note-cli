@@ -1,6 +1,9 @@
 # Changelog
 
-## 0.3.0 — unreleased
+## 0.3.0 — 2026-09-18
+
+Two silent wrong-number bugs. In both, the tool reported a confident total
+that was arithmetic rather than judgement, and every test passed.
 
 - **Stale scores are now visible.** Totals have always been recomputed against
   the current goal, but nothing marked a score made against an older revision:
@@ -10,6 +13,12 @@
   `note goals` and `note show` mark it, and `note goal --set` reports how many
   scores it just invalidated. A score written before this release has no
   revision recorded and reads stale, which is the honest answer.
+- **A corrected attempt stops competing.** `note supersede` created the new
+  node but left the `targets` edge on the old one, which kept its score too —
+  so `note goals` could report an attempt that had been corrected away as the
+  best one. Corrections now inherit the goal links, and both the rollup and
+  `note check` skip a superseded node. Found by the stale-score check added
+  above, in this project's own end-to-end run.
 
 ## 0.2.0 — 2026-09-18
 

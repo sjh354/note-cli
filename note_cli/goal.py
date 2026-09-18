@@ -21,6 +21,20 @@ def set_goal(text, criteria):
                                  "timestamp": store.now()})
 
 
+SUPERSEDED = "superseded_by"
+
+
+def superseded_ids(edges):
+    """Nodes that have been corrected by a later one.
+
+    Append-only never removes anything, so a superseded node keeps its goal
+    link and its score. Both the rollup and the loop check have to skip them:
+    otherwise a corrected-away attempt goes on competing for best, and a goal
+    revision makes the check demand that it be re-judged.
+    """
+    return {e["from"] for e in edges if e["relation"] == SUPERSEDED}
+
+
 def goal_revision(g):
     """Identity of a goal revision. `goal.jsonl` is append-only and written
     under the lock, so its timestamp identifies the revision."""
@@ -106,6 +120,7 @@ def rollup():
     latest = latest_scores()
     by_id = {n["id"]: n for n in nodes}
 
+    corrected = superseded_ids(edges)
     targeted, assigned = {}, set()
     for e in edges:
         if e["relation"] == "targets":
@@ -118,7 +133,7 @@ def rollup():
             continue
         best = None
         for aid in targeted.get(n["id"], ()):
-            if aid not in latest:
+            if aid not in latest or aid in corrected:
                 continue
             cand = (weighted_total(latest[aid]["scores"], criteria), aid,
                     latest[aid])
@@ -130,7 +145,8 @@ def rollup():
     # work — it must not simply vanish from the rollup
     unassigned = [(by_id[i], weighted_total(latest[i]["scores"], criteria),
                    latest[i])
-                  for i in sorted(latest) if i not in assigned and i in by_id]
+                  for i in sorted(latest)
+                  if i not in assigned and i in by_id and i not in corrected]
     return rows, unassigned
 
 
@@ -150,9 +166,10 @@ def unfinished():
     latest = latest_scores()
     g = current_goal()
     targeting = {e["from"] for e in edges if e["relation"] == "targets"}
+    corrected = superseded_ids(edges)
     untargeted, unscored, stale = [], [], []
     for n in nodes:
-        if n["type"] != "attempt":
+        if n["type"] != "attempt" or n["id"] in corrected:
             continue
         if n["id"] not in targeting:
             untargeted.append(n)
@@ -255,6 +272,22 @@ def demo():
 
     # a score line predating this feature has no goal_ts and must read stale
     assert is_stale({"scores": {}}, current_goal())
+
+    # --- a corrected attempt must stop competing ---
+    add_score(a2, {"consistency": 1.0, "renamed": 1.0})     # a2 is now the best
+    rows, _ = rollup()
+    assert rows[0][1][1] == a2, rows[0]
+
+    fixed = store.supersede(a2, "arm B1_P2, corrected")
+    rows, _ = rollup()
+    best_id = rows[0][1][1] if rows[0][1] else None
+    assert best_id != a2, "a superseded attempt must not win the rollup"
+    assert best_id == a1, (best_id, a1)          # fixed is unscored, so a1 wins
+
+    # and it must not be demanded back by the loop check either
+    _, unscored, stale = unfinished()
+    assert a2 not in [n["id"] for n in unscored] + [n["id"] for n in stale]
+    assert fixed in [n["id"] for n in unscored], "the correction still needs judging"
 
     print("goal: ok")
 

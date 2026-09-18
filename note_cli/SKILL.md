@@ -47,7 +47,10 @@ to agents working other branches in parallel.
 Nothing is ever edited in place. `note supersede <id> "corrected content"`
 appends a new node and an edge `old -superseded_by-> new`, which moves the
 frontier to the new node and takes the old one out of `note tails`. Type and
-tags are inherited unless you pass new ones.
+tags are inherited unless you pass new ones, along with whatever goal the
+original targeted — so the correction is already linked and only needs a
+score. The node you corrected stops competing for best and stops being asked
+for one.
 
 ## Orientation
 
