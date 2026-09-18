@@ -78,10 +78,17 @@ def main_check():
     after = {n["id"] for n in graphtails()}
     assert 5 not in after and 6 in after, (before, after)
 
-    # supersede does NOT carry the targets edge forward, so `check` flags the
-    # correction as untargeted until it is re-linked. See TODO.
-    run("link", "6", "1", "--rel", "targets")
+    # supersede carries the targets edge forward, so the correction is already
+    # linked and only needs judging
+    from note_cli import store as _st
+    assert {"from": 6, "to": 1, "relation": "targets"} in _st.read("edges.jsonl")
     run("score", "6", "consistency=0.5")
+
+    # and the node it corrected must no longer compete for best
+    from note_cli import goal as _g
+    rows, _unassigned = _g.rollup()
+    winners = [b[1] for _n, b in rows if b]
+    assert 5 not in winners, f"superseded #5 still winning: {winners}"
 
     run("status")
 

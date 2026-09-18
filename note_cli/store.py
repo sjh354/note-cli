@@ -138,6 +138,14 @@ def supersede(old, content, type=None, tags=()):
             "timestamp": now(),
         })
         append("edges.jsonl", {"from": old, "to": nid, "relation": "superseded_by"})
+        # Carry the goal links forward. Without this the correction targets
+        # nothing while the corrected node keeps its link AND its score, so
+        # `note goals` can report an attempt that was corrected away as the
+        # best one — silently.
+        for e in read("edges.jsonl"):
+            if e["from"] == old and e["relation"] == "targets":
+                append("edges.jsonl", {"from": nid, "to": e["to"],
+                                       "relation": "targets"})
     return nid
 
 
@@ -198,6 +206,9 @@ def demo():
     assert rows[new_id]["type"] == rows[a]["type"], "type is inherited"
     assert rows[new_id]["tags"] == rows[a]["tags"], "tags are inherited"
     assert {"from": a, "to": new_id, "relation": "superseded_by"} in read("edges.jsonl")
+    # the correction must inherit what the original targeted, or the rollup
+    # keeps crediting the node that was corrected away
+    assert {"from": new_id, "to": g, "relation": "targets"} in read("edges.jsonl")
     try:
         supersede(999, "nope")
         raise AssertionError("expected SystemExit")
