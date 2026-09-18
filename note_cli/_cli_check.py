@@ -122,6 +122,31 @@ def main_check():
         run("score", nid, "consistency=0.5", "renamed=0.5")
     run("check")                        # re-scored under the new goal: clean again
 
+    # unlink: a wrong edge is not permanent, but edges.jsonl is never rewritten
+    run("link", "2", "4", "--rel", "oops")
+    run("unlink", "2", "4", "--rel", "oops")
+    from note_cli import store as _st2
+    assert not any(e["from"] == 2 and e["to"] == 4 and e["relation"] == "oops"
+                   for e in _st2.live_edges()), "unlinked edge must not be live"
+    assert any(e["from"] == 2 and e["to"] == 4 and e.get("unlink")
+               for e in _st2.read("edges.jsonl")), "the tombstone must be an appended record"
+    try:
+        run("unlink", "2", "4", "--rel", "oops")
+        raise AssertionError("expected SystemExit: nothing live left to unlink")
+    except SystemExit as e:
+        assert "no live edge" in str(e), e
+
+    # --set-weight / --set-rubric: edit one field without retyping the goal
+    run("goal", "--set-weight", "consistency=5")
+    run("goal", "--set-rubric", "renamed=clearer text")
+    g_after = _g.current_goal()
+    assert [c["weight"] for c in g_after["criteria"] if c["name"] == "consistency"] == [5.0]
+    assert [c["rubric"] for c in g_after["criteria"] if c["name"] == "renamed"] == ["clearer text"]
+    try:
+        run("goal", "--set-weight", "nonesuch=1")
+        raise AssertionError("expected SystemExit for an unknown criterion")
+    except SystemExit as e:
+        assert "nonesuch" in str(e), e
 
     # --version must report what the package metadata says, so a bug report
     # names a real release
@@ -139,7 +164,7 @@ def main_check():
 
 def graphtails():
     from note_cli import graph as g, store
-    return g.tails(store.read("nodes.jsonl"), store.read("edges.jsonl"))
+    return g.tails(store.read("nodes.jsonl"), store.live_edges())
 
 
 if __name__ == "__main__":

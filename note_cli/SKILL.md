@@ -52,6 +52,16 @@ original targeted — so the correction is already linked and only needs a
 score. The node you corrected stops competing for best and stops being asked
 for one.
 
+## Correcting an edge or the goal
+
+Still nothing rewritten. `note unlink <from> <to> [--rel R]` appends a
+tombstone that cancels a matching edge for every reader — `--rel` narrows it,
+omit it to unlink every relation between the pair. `note goal --set-weight
+name=N` / `--set-rubric name="..."` copy the current goal forward with one
+criterion field changed instead of retyping every `--criterion`. Both bump
+the goal revision like `--set` does, so freshly-scored attempts read STALE
+again — `note check` will list them.
+
 ## Orientation
 
 - `note status` — goal, criteria, per-goal best and the frontier, in one screen

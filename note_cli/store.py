@@ -122,6 +122,44 @@ def add_edge(src, dst, relation):
         append("edges.jsonl", {"from": src, "to": dst, "relation": relation})
 
 
+def live_edges(raw=None):
+    """`edges.jsonl` with every unlink tombstone applied.
+
+    Append-only means a wrong edge can never be rewritten out of the file —
+    `unlink` instead appends a later record that cancels a matching earlier
+    one for every reader. Order matters: a tombstone only cancels edges that
+    precede it, so re-linking the same pair afterward is live again — hence
+    one pass, in file order, rather than a match against the whole file.
+    `raw=None` reads the file; passing it in lets a caller that already has
+    the rows (e.g. `supersede`, mid-lock) reuse them.
+    """
+    raw = read("edges.jsonl") if raw is None else raw
+    live = []
+    for e in raw:
+        if e.get("unlink"):
+            live = [x for x in live
+                    if not (x["from"] == e["from"] and x["to"] == e["to"]
+                            and (e["relation"] is None or x["relation"] == e["relation"]))]
+        else:
+            live.append(e)
+    return live
+
+
+def unlink(src, dst, relation=None):
+    """Tombstone a wrong edge. Does not rewrite `edges.jsonl` — appends a
+    record that `live_edges` treats as cancelling every matching earlier one.
+    `relation=None` unlinks every relation between the pair."""
+    with write_lock():
+        match = any(e["from"] == src and e["to"] == dst
+                    and (relation is None or e["relation"] == relation)
+                    for e in live_edges())
+        if not match:
+            where = f" ({relation})" if relation else ""
+            raise SystemExit(f"no live edge {src} -> {dst}{where}")
+        append("edges.jsonl", {"from": src, "to": dst, "relation": relation,
+                               "unlink": True})
+
+
 def supersede(old, content, type=None, tags=()):
     """Correct a node. Append-only has no edit, so a correction is a new node
     plus an edge `old -superseded_by-> new`.
@@ -150,7 +188,7 @@ def supersede(old, content, type=None, tags=()):
         # nothing while the corrected node keeps its link AND its score, so
         # `note goals` can report an attempt that was corrected away as the
         # best one — silently.
-        for e in read("edges.jsonl"):
+        for e in live_edges():
             if e["from"] == old and e["relation"] == "targets":
                 append("edges.jsonl", {"from": nid, "to": e["to"],
                                        "relation": "targets"})
@@ -224,6 +262,22 @@ def demo():
     except SystemExit as e:
         assert "999" in str(e), e
 
+    # unlink tombstones without rewriting edges.jsonl
+    unlink(a, g, "targets")
+    assert live_edges() == [], live_edges()
+    assert read("edges.jsonl") == [
+        {"from": a, "to": g, "relation": "targets"},
+        {"from": a, "to": g, "relation": "targets", "unlink": True},
+    ], read("edges.jsonl")
+    try:
+        unlink(a, g, "targets")
+        raise AssertionError("expected SystemExit: nothing live left to unlink")
+    except SystemExit as e:
+        assert "no live edge" in str(e), e
+    add_edge(a, g, "targets")     # re-link so the supersede test below has something to carry
+    assert {"from": a, "to": g, "relation": "targets"} in live_edges(), \
+        "a re-link after unlink must be live — the tombstone must not cancel a later edge"
+
     # detached HEAD must not produce an empty branch field
     subprocess.run(["git", "commit", "-q", "--allow-empty", "-m", "x"], check=True)
     head = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
@@ -246,6 +300,11 @@ def demo():
         raise AssertionError("expected SystemExit")
     except SystemExit as e:
         assert "999" in str(e), e
+
+    # a tombstoned targets edge must not be carried forward by a later supersede
+    unlink(new_id, g, "targets")
+    again = supersede(new_id, "first attempt, corrected again")
+    assert {"from": again, "to": g, "relation": "targets"} not in live_edges()
 
     # sync: no remote yet -> clear error, not a push into the void
     try:

@@ -11,6 +11,12 @@
   `note tails` take `--branch <name>` and `--limit N` (newest first). `note
   graph` now defaults to the newest 50 nodes instead of every node ever
   recorded; `--all` opts back into everything, `--branch` narrows further.
+- **A wrong edge or a typo'd rubric no longer means living with it.** `note
+  unlink <from> <to> [--rel R]` appends a tombstone rather than rewriting
+  `edges.jsonl`. `note goal --set-weight name=N` / `--set-rubric
+  name="..."` copy the current goal forward with one criterion field changed,
+  instead of retyping every `--criterion`. Both bump the goal revision like
+  `--set` does, so freshly-scored attempts read `STALE` again.
 
 ## 0.3.0 — 2026-09-18
 

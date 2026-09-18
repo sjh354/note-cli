@@ -5,8 +5,6 @@ was actually observed, not what might go wrong.
 
 Done since the last pass, both shipped in 0.3.0: stale scores are now
 detected and surfaced, and a superseded attempt no longer wins the rollup.
-Item 3 below has lost its node half — `supersede` works properly now — and
-keeps only the edge and goal-criterion halves.
 
 Item 1 is done (unreleased): the store is its own git repo, and `note sync`
 commits and pushes it once a remote is set.
@@ -14,29 +12,13 @@ commits and pushes it once a remote is set.
 Item 2 is done (unreleased): `heads`/`tails` take `--branch`/`--limit`, and
 `graph` defaults to the newest 50 nodes instead of the whole store.
 
----
-
-## 3. Append-only has an escape hatch for nodes, none for edges or criteria
-
-- **A wrong edge is permanent.** `note link 2 1 --rel oops` is accepted and
-  there is no `note unlink`. `note supersede` covers nodes only.
-- **A goal cannot be edited in part.** Changing one weight means re-typing
-  every `--criterion`, and a rubric typed slightly differently silently
-  changes the standard everything is measured against. That now shows up as
-  `STALE` rather than as a quietly wrong number (0.3.0), but it still means
-  re-scoring everything over a typo.
-
-**Fix:** `note unlink <from> <to> [--rel R]` appending a tombstone (stay
-append-only — do not rewrite `edges.jsonl`), and `note goal --set-weight
-name=N` / `--set-rubric name="..."` that copy the current goal forward with
-one field changed.
-
-**Do it when:** the first wrong edge or fat-fingered rubric actually happens.
-Both are cheap then and speculative now.
+Item 3 is done (unreleased): `note unlink` tombstones a wrong edge, and
+`note goal --set-weight`/`--set-rubric` edit one criterion field without
+retyping the rest.
 
 ---
 
-## 4. Homebrew formula — now unblocked
+## 3. Homebrew formula — now unblocked
 
 `0.2.0` is on PyPI, so the sdist URL and sha256 that a formula needs exist.
 With zero runtime dependencies there are no `resource` blocks to generate, so

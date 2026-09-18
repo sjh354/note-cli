@@ -17,7 +17,7 @@ from note_cli import render, store
 
 
 def _nodes_edges():
-    return store.read("nodes.jsonl"), store.read("edges.jsonl")
+    return store.read("nodes.jsonl"), store.live_edges()
 
 
 def _line(n):
@@ -54,14 +54,31 @@ def cmd_goal(args):
             for c in g["criteria"]:
                 print(f"     {c['weight']:<5} {c['name']}: {c['rubric']}")
         return
-    if args.set is not None:
-        criteria = [goalmod.parse_criterion(c) for c in (args.criterion or [])]
-        if not criteria:
-            raise SystemExit("--set needs at least one --criterion name:weight:rubric")
+    if args.set is not None or args.set_weight or args.set_rubric:
         was_fresh = [s for s in goalmod.latest_scores().values()
                      if not goalmod.is_stale(s, goalmod.current_goal())]
-        goalmod.set_goal(args.set, criteria)
-        print(f"goal set, {len(criteria)} criteria")
+        if args.set_weight:
+            name, sep, val = args.set_weight.partition("=")
+            if not sep:
+                raise SystemExit("--set-weight wants name=value")
+            try:
+                weight = float(val)
+            except ValueError:
+                raise SystemExit(f"--set-weight: {val!r} is not a number")
+            goalmod.set_weight(name, weight)
+            print(f"{name}: weight -> {weight}")
+        elif args.set_rubric:
+            name, sep, rubric = args.set_rubric.partition("=")
+            if not sep:
+                raise SystemExit("--set-rubric wants name=rubric text")
+            goalmod.set_rubric(name, rubric)
+            print(f"{name}: rubric -> {rubric}")
+        else:
+            criteria = [goalmod.parse_criterion(c) for c in (args.criterion or [])]
+            if not criteria:
+                raise SystemExit("--set needs at least one --criterion name:weight:rubric")
+            goalmod.set_goal(args.set, criteria)
+            print(f"goal set, {len(criteria)} criteria")
         if was_fresh:
             print(f"{len(was_fresh)} score(s) now judged against an older goal — "
                   f"`note check` lists them")
@@ -83,6 +100,12 @@ def cmd_add(args):
 def cmd_link(args):
     store.add_edge(args.src, args.dst, args.rel)
     print(f"{args.src} -{args.rel}-> {args.dst}")
+
+
+def cmd_unlink(args):
+    store.unlink(args.src, args.dst, args.rel)
+    where = f" ({args.rel})" if args.rel else " (any relation)"
+    print(f"unlinked {args.src} -> {args.dst}{where}")
 
 
 def cmd_score(args):
@@ -283,6 +306,10 @@ def build_parser():
     g = sub.add_parser("goal", help="show or set the final goal")
     g.add_argument("--set")
     g.add_argument("--criterion", action="append", metavar="name:weight:rubric")
+    g.add_argument("--set-weight", metavar="name=N",
+                    help="copy the current goal forward with one criterion's weight changed")
+    g.add_argument("--set-rubric", metavar="name=rubric",
+                    help="copy the current goal forward with one criterion's rubric changed")
     g.add_argument("--history", action="store_true")
     g.set_defaults(fn=cmd_goal)
 
@@ -297,6 +324,12 @@ def build_parser():
     ln.add_argument("dst", type=int)
     ln.add_argument("--rel", required=True)
     ln.set_defaults(fn=cmd_link)
+
+    ul = sub.add_parser("unlink", help="tombstone a wrong edge (append-only)")
+    ul.add_argument("src", type=int)
+    ul.add_argument("dst", type=int)
+    ul.add_argument("--rel", help="omit to unlink every relation between the pair")
+    ul.set_defaults(fn=cmd_unlink)
 
     sc = sub.add_parser("score", help="score an attempt against the goal criteria")
     sc.add_argument("id", type=int)

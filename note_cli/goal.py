@@ -21,6 +21,29 @@ def set_goal(text, criteria):
                                  "timestamp": store.now()})
 
 
+def _copy_with(field, name, value):
+    """Copy the current goal forward with one criterion field changed —
+    editing a weight or rubric otherwise means re-typing every `--criterion`,
+    and a rubric retyped slightly differently silently changes the standard
+    everything is measured against."""
+    g = current_goal()
+    if not g:
+        raise SystemExit("no goal set — run `note goal --set ... --criterion ...`")
+    if not any(c["name"] == name for c in g["criteria"]):
+        raise SystemExit(f"no criterion {name!r} in the current goal")
+    criteria = [dict(c, **{field: value}) if c["name"] == name else dict(c)
+                for c in g["criteria"]]
+    set_goal(g["goal"], criteria)
+
+
+def set_weight(name, weight):
+    _copy_with("weight", name, weight)
+
+
+def set_rubric(name, rubric):
+    _copy_with("rubric", name, rubric)
+
+
 SUPERSEDED = "superseded_by"
 
 
@@ -114,7 +137,7 @@ def rollup():
     the best one". A mean would dilute a winning arm with its failed siblings.
     """
     nodes = store.read("nodes.jsonl")
-    edges = store.read("edges.jsonl")
+    edges = store.live_edges()
     g = current_goal()
     criteria = g["criteria"] if g else []
     latest = latest_scores()
@@ -162,7 +185,7 @@ def unfinished():
     its total is arithmetic rather than judgement.
     """
     nodes = store.read("nodes.jsonl")
-    edges = store.read("edges.jsonl")
+    edges = store.live_edges()
     latest = latest_scores()
     g = current_goal()
     targeting = {e["from"] for e in edges if e["relation"] == "targets"}
@@ -288,6 +311,33 @@ def demo():
     _, unscored, stale = unfinished()
     assert a2 not in [n["id"] for n in unscored] + [n["id"] for n in stale]
     assert fixed in [n["id"] for n in unscored], "the correction still needs judging"
+
+    # --- editing one criterion field must not require retyping the rest ---
+    add_score(a1, {"consistency": 1.0, "renamed": 1.0})
+    assert not is_stale(latest_scores()[a1], current_goal())
+    before = current_goal()
+
+    time.sleep(1)                       # timestamps are second-resolution
+    set_weight("consistency", 5.0)
+    g = current_goal()
+    assert g["goal"] == before["goal"], "goal text must be untouched by --set-weight"
+    assert [c["weight"] for c in g["criteria"] if c["name"] == "consistency"] == [5.0]
+    assert [c["rubric"] for c in g["criteria"] if c["name"] == "consistency"] == ["x"], \
+        "the untouched criterion's rubric must survive the copy"
+    # a new revision was written, so a fresh score reads stale again
+    assert is_stale(latest_scores()[a1], g)
+
+    set_rubric("renamed", "clearer text")
+    g = current_goal()
+    assert [c["rubric"] for c in g["criteria"] if c["name"] == "renamed"] == ["clearer text"]
+    assert [c["weight"] for c in g["criteria"] if c["name"] == "renamed"] == [1.0], \
+        "the untouched criterion's weight must survive the copy"
+
+    try:
+        set_weight("nonesuch", 1.0)
+        raise AssertionError("expected SystemExit for an unknown criterion")
+    except SystemExit as e:
+        assert "nonesuch" in str(e), e
 
     print("goal: ok")
 
