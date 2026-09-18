@@ -1,5 +1,6 @@
 """End-to-end drive of every command. Run: python -m note_cli._cli_check"""
 import os
+import re
 import subprocess
 import tempfile
 
@@ -54,6 +55,14 @@ def main_check():
     run("graph", "--branch", "master")
     run("graph", "--limit", "2")
     run("graph", "--all")
+
+    # --limit 0 must mean zero nodes, not "no limit given" (0 is falsy) and
+    # not "the whole list" (nodes[-0:] is nodes[0:] in Python)
+    run("graph", "--limit", "0")
+    from note_cli import store as _st0
+    dot = (_st0.store_dir() / "graph.dot").read_text()
+    assert not re.search(r"^  n\d+ \[label=", dot, re.M), \
+        f"--limit 0 must render no real nodes (FINAL is a separate virtual node):\n{dot}"
 
     from note_cli.cli import _filter_nodes
     sample = [{"id": 1, "branch": "a"}, {"id": 2, "branch": "b"}, {"id": 3, "branch": "a"}]

@@ -262,8 +262,8 @@ def cmd_graph(args):
     elif args.all:
         keep = None
     else:
-        limit = args.limit or DEFAULT_GRAPH_LIMIT
-        keep = {n["id"] for n in nodes[-limit:]}
+        limit = DEFAULT_GRAPH_LIMIT if args.limit is None else args.limit
+        keep = {n["id"] for n in (nodes[-limit:] if limit > 0 else [])}
     if args.branch:
         branch_ids = {n["id"] for n in nodes if n.get("branch") == args.branch}
         keep = branch_ids if keep is None else keep & branch_ids
