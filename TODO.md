@@ -33,3 +33,13 @@ them blind. Until then `SKILL.md` carries the loop and `note check` enforces it.
 - `note graph --depth` only walks downward. Upward depth would need `--up`.
 - `note search` is substring-only. Deferred in the spec pending evidence that
   it actually fails to find things.
+
+## Homebrew / a bundled installer
+
+A formula for a Python CLI (`virtualenv_install_with_resources`) needs a
+published sdist URL and its sha256, so **this is blocked until the first PyPI
+release exists**. With zero runtime dependencies there are no `resource` blocks
+to generate, which makes the formula nearly trivial once the tarball is up.
+
+A standalone binary (PyInstaller) stays deferred for the reason the spec gave:
+python3 is already present on macOS and Linux, so a bundled runtime buys little.

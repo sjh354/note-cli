@@ -79,6 +79,18 @@ def main_check():
     assert 5 not in after and 6 in after, (before, after)
 
     run("status")
+
+    # --version must report what the package metadata says, so a bug report
+    # names a real release
+    from note_cli import __version__
+    try:
+        run("--version")
+        raise AssertionError("argparse should exit after --version")
+    except SystemExit as e:
+        assert e.code == 0, e.code
+    import importlib.metadata as md
+    assert __version__ == md.version("note-cli"), (__version__, md.version("note-cli"))
+
     print("cli: ok")
 
 

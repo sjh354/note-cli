@@ -4,7 +4,7 @@ A decision-graph and goal notebook for a git repo. One store per repo, shared
 by every worktree, kept in `<repo>/.git/notes/` — so it never appears in the
 working tree and needs no `.gitignore` entry.
 
-    pipx install -e .        # or: python -m pip install -e .
+    pipx install note-cli    # once published; for a checkout: pipx install -e .
     note init
     note goal --set "ship an education image generator" \
       --criterion "consistency:3:the reference style holds across seeds" \
@@ -19,6 +19,9 @@ working tree and needs no `.gitignore` entry.
     note status                                           # everything at a glance
     note check                                            # exit 1 if the loop is open
     note supersede 2 "arm B1_P2, corrected"               # append-only correction
+
+Requires a POSIX system (Linux, macOS, WSL) — the store is locked with
+`fcntl.flock`. MIT licensed.
 
 Design: [`docs/superpowers/specs/2026-09-17-note-cli-design.md`](docs/superpowers/specs/2026-09-17-note-cli-design.md)
 
