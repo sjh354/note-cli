@@ -3,34 +3,28 @@
 Ranked by what bites first, not by what is interesting. Each item says what
 was actually observed, not what might go wrong.
 
----
-
-## 1. A stale score is silently wrong, and `note check` calls it clean
-
-**The worst one, because it corrupts the tool's whole claim.** Totals are
-recomputed against the *current* goal — that is the design and it is correct —
-but nothing marks a score that predates a goal revision.
-
-Observed: an attempt scored `a=1.0 b=1.0` under a two-criterion goal reads
-`best 1.000`. Rename `b` to `c` in the goal and the same attempt silently reads
-`best 0.500`. `note check` then reports **`clean: every attempt targets a goal
-and carries a score`** — the number is wrong and the one command whose job is
-to catch an open loop says everything is fine.
-
-Anyone comparing arms after a goal revision is reading arithmetic, not
-judgement, and has no way to tell which is which.
-
-**Fix:** stamp each score line with the goal revision it was made against
-(`goal.jsonl` already has a `timestamp` — use it as the revision id), then:
-
-- `note check` reports attempts scored against an older goal revision and
-  exits nonzero, the same as an unscored one.
-- `note goals` marks a stale row rather than printing a confident number.
-- `note goal --set` says how many scores it just invalidated.
-
-**Do it:** next. The failure is silent and the data is already there.
+Done since the last pass: stale scores are now detected and surfaced
+(was item 1) — see `CHANGELOG.md` 0.3.0.
 
 ---
+
+## 1. `supersede` drops the goal link, and the old attempt keeps winning
+
+Found while fixing the stale-score bug. `note supersede <id> "corrected"`
+creates the new node and the `superseded_by` edge, but does **not** carry the
+`targets` edge forward. Two consequences:
+
+- `note check` flags the correction as targeting no goal until it is
+  re-linked by hand — noisy, but at least loud.
+- The superseded node still targets the goal and still holds its score, so
+  **`note goals` can report a corrected-away attempt as the best one.** That
+  one is silent.
+
+**Fix:** carry `targets` edges forward in `supersede`, and have `rollup()`
+skip nodes that have an outgoing `superseded_by` edge.
+
+**Do it:** next. The second consequence is the same class of silent-wrong-
+number as the bug just fixed.
 
 ## 2. The store dies with the machine
 

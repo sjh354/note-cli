@@ -21,6 +21,25 @@ def set_goal(text, criteria):
                                  "timestamp": store.now()})
 
 
+def goal_revision(g):
+    """Identity of a goal revision. `goal.jsonl` is append-only and written
+    under the lock, so its timestamp identifies the revision."""
+    return g["timestamp"] if g else None
+
+
+def is_stale(score, g):
+    """True when this score was judged against a different goal revision than
+    the current one.
+
+    Its total is still computed — against today's criteria — which is exactly
+    why it has to be flagged: the number looks like a judgement and is
+    arithmetic. A score line written before this field existed has no
+    `goal_ts`, so it reads stale, which is the honest answer: we do not know
+    what standard it was made against.
+    """
+    return score.get("goal_ts") != goal_revision(g)
+
+
 def parse_criterion(s):
     parts = s.split(":", 2)          # first two colons only; rubrics contain colons
     if len(parts) != 3:
@@ -69,6 +88,7 @@ def add_score(nid, scores, note=None):
         if unknown:
             raise SystemExit(f"unknown criteria {unknown}; goal has {sorted(known)}")
         store.append(SCORE_FILE, {"node": nid, "scores": scores, "note": note,
+                                  "goal_ts": goal_revision(g),
                                   "timestamp": store.now()})
         return weighted_total(scores, g["criteria"])
 
@@ -101,7 +121,7 @@ def rollup():
             if aid not in latest:
                 continue
             cand = (weighted_total(latest[aid]["scores"], criteria), aid,
-                    latest[aid]["timestamp"])
+                    latest[aid])
             if best is None or cand[0] > best[0]:
                 best = cand
         rows.append((n, best))
@@ -109,23 +129,28 @@ def rollup():
     # a scored attempt with no goal is a linking mistake, not a category of
     # work — it must not simply vanish from the rollup
     unassigned = [(by_id[i], weighted_total(latest[i]["scores"], criteria),
-                   latest[i]["timestamp"])
+                   latest[i])
                   for i in sorted(latest) if i not in assigned and i in by_id]
     return rows, unassigned
 
 
 def unfinished():
-    """Attempts that break the loop, as (untargeted, unscored).
+    """Attempts that break the loop, as (untargeted, unscored, stale).
 
     Only `attempt` nodes are held to it — a decision or a plain note has
     nothing to score. This is what `note check` exits nonzero on, so a hook
     or an agent can gate on it instead of trusting itself to remember.
+
+    `stale` is the one that used to pass silently: the attempt is linked and
+    scored, but judged against a goal revision that is no longer current, so
+    its total is arithmetic rather than judgement.
     """
     nodes = store.read("nodes.jsonl")
     edges = store.read("edges.jsonl")
     latest = latest_scores()
+    g = current_goal()
     targeting = {e["from"] for e in edges if e["relation"] == "targets"}
-    untargeted, unscored = [], []
+    untargeted, unscored, stale = [], [], []
     for n in nodes:
         if n["type"] != "attempt":
             continue
@@ -133,7 +158,9 @@ def unfinished():
             untargeted.append(n)
         elif n["id"] not in latest:
             unscored.append(n)
-    return untargeted, unscored
+        elif is_stale(latest[n["id"]], g):
+            stale.append(n)
+    return untargeted, unscored, stale
 
 
 def demo():
@@ -196,15 +223,38 @@ def demo():
     assert [u[0]["id"] for u in unassigned] == [orphan], unassigned
 
     # orphan targets nothing; a1/a2 target g and are scored
-    untargeted, unscored = unfinished()
+    untargeted, unscored, stale = unfinished()
     assert [n["id"] for n in untargeted] == [orphan], untargeted
-    assert unscored == [], unscored
+    assert unscored == [] and stale == [], (unscored, stale)
 
     fresh = store.add_node("just tried, not judged yet", type="attempt")
     store.add_edge(fresh, g, "targets")
-    untargeted, unscored = unfinished()
+    untargeted, unscored, stale = unfinished()
     assert [n["id"] for n in untargeted] == [orphan], untargeted
     assert [n["id"] for n in unscored] == [fresh], unscored
+    assert stale == [], stale
+
+    # a score carries the goal revision it was judged against
+    assert latest_scores()[a1]["goal_ts"] == current_goal()["timestamp"]
+    assert not is_stale(latest_scores()[a1], current_goal())
+
+    # renaming a criterion must NOT silently leave a confident-looking number
+    import time
+    time.sleep(1)                       # timestamps are second-resolution
+    set_goal("moved the bar", [{"name": "consistency", "weight": 3.0, "rubric": "x"},
+                               {"name": "renamed", "weight": 1.0, "rubric": "y"}])
+    assert is_stale(latest_scores()[a1], current_goal())
+    untargeted, unscored, stale = unfinished()
+    assert [n["id"] for n in stale] == [a1, a2], stale   # orphan is untargeted, fresh unscored
+
+    # a re-score under the new goal clears it
+    add_score(a1, {"consistency": 1.0})
+    assert not is_stale(latest_scores()[a1], current_goal())
+    _, _, stale = unfinished()
+    assert [n["id"] for n in stale] == [a2], stale
+
+    # a score line predating this feature has no goal_ts and must read stale
+    assert is_stale({"scores": {}}, current_goal())
 
     print("goal: ok")
 
