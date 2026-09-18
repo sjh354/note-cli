@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **The store survives a dead disk.** `note init` now makes the store its own
+  git repo (separate from the outer project's), and `note sync` commits and
+  pushes it once a remote is added. Previously `<repo>/.git/notes/` lived and
+  died with the outer repo's working copy — `git push` on the outer repo never
+  touches it.
+
 ## 0.3.0 — 2026-09-18
 
 Two silent wrong-number bugs. In both, the tool reported a confident total

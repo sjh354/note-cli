@@ -234,6 +234,11 @@ def cmd_graph(args):
         print("graphviz `dot` not found — install it to also render an .svg")
 
 
+def cmd_sync(args):
+    changed = store.sync()
+    print("synced" + (" (committed local changes)" if changed else " (nothing new)"))
+
+
 def cmd_skill(args):
     src = Path(__file__).parent / "SKILL.md"
     dst = Path.home() / ".claude" / "skills" / "note" / "SKILL.md"
@@ -308,6 +313,9 @@ def build_parser():
     gr.add_argument("--from", dest="frm", type=int)
     gr.add_argument("--depth", type=int)
     gr.set_defaults(fn=cmd_graph)
+
+    sub.add_parser("sync", help="commit and push the store's own git repo"
+                   ).set_defaults(fn=cmd_sync)
 
     sk = sub.add_parser("skill", help="install the agent skill")
     sk.add_argument("--install", action="store_true", required=True)

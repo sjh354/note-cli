@@ -8,23 +8,8 @@ detected and surfaced, and a superseded attempt no longer wins the rollup.
 Item 3 below has lost its node half — `supersede` works properly now — and
 keeps only the edge and goal-criterion halves.
 
----
-
-## 1. The store dies with the machine
-
-`<repo>/.git/notes/` is not carried by `git push` and does not survive a
-re-clone. The spec accepts that as a cost, and append-only means nothing is
-ever *overwritten* — but neither fact survives a dead disk, and the point of
-the store is that months of decisions accumulate in it.
-
-- **Preferred:** make the store its own git repo, add `note sync` (commit +
-  push). Real backup plus machine-to-machine sharing. The spec rejected a
-  nested git because "append-only already loses nothing" — that argument does
-  not cover hardware failure, which is why this is still open.
-- **Lazier:** `note export` / `note import` over one rolled-up JSONL. Backup
-  becomes something a human has to remember.
-
-**Do it when:** losing the store would hurt — call it 50 nodes.
+Item 1 is done (unreleased): the store is its own git repo, and `note sync`
+commits and pushes it once a remote is set.
 
 ---
 

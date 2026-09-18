@@ -61,3 +61,5 @@ for one.
 - `note trace <id>` — what an attempt ultimately feeds
 - `note trace <goal-id> --up` — which attempts feed a goal
 - `note search <keyword>` — find a node to start from
+- `note sync` — commit and push the store (its own git repo; needs a remote
+  added once with `git -C <store dir> remote add origin <url>`)

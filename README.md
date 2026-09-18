@@ -20,6 +20,12 @@ working tree and needs no `.gitignore` entry.
     note check                                            # exit 1 if the loop is open
     note supersede 2 "arm B1_P2, corrected"               # append-only correction
 
+The store is its own git repo (separate from the outer project's), so it
+survives a dead disk once it has a remote:
+
+    git -C "$(git rev-parse --git-common-dir)/notes" remote add origin <url>
+    note sync                                             # commit + push the store
+
 Three names, deliberately: the PyPI distribution is **notegraph**, the git repo
 is **note-cli**, and the command you type is **note**. `note-cli` was taken on
 PyPI by similarity to an existing `notecli`.

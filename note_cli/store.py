@@ -41,6 +41,10 @@ def init():
 
     Six worktrees share one store, so a second agent's `init` is a re-entry
     into a store that already holds everyone's work, not a fresh start.
+
+    The store is also its own git repo, separate from the outer project: the
+    outer repo's `git push` never touches `.git/notes`, so without this the
+    store dies with the disk. `note sync` commits and pushes it.
     """
     d = store_dir()
     d.mkdir(parents=True, exist_ok=True)
@@ -50,6 +54,10 @@ def init():
         if not f.exists():
             f.touch()
             created.append(name)
+    if not (d / ".git").is_dir():
+        subprocess.run(["git", "init", "-q"], cwd=d, check=True)
+        (d / ".gitignore").write_text(".lock\n")
+        created.append("(git repo)")
     return d, created
 
 
@@ -149,6 +157,29 @@ def supersede(old, content, type=None, tags=()):
     return nid
 
 
+def sync():
+    """Commit and push the store's own repo. Returns True if there was
+    anything new to commit (a no-op sync is not an error, just silent)."""
+    d = require_store()
+    if not (d / ".git").is_dir():
+        raise SystemExit(f"{d} is not a git repo — re-run `note init` to create one")
+
+    def sgit(*args):
+        return subprocess.run(["git", *args], cwd=d, capture_output=True, text=True)
+
+    if not sgit("remote").stdout.strip():
+        raise SystemExit(f"no remote on {d} — "
+                          f"`git -C {d} remote add origin <url>`, then `note sync` again")
+
+    sgit("add", "-A")
+    committed = sgit("commit", "-q", "-m", f"sync {now()}").returncode == 0
+
+    r = sgit("push", "-q", "origin", "HEAD")
+    if r.returncode != 0:
+        raise SystemExit(r.stderr.strip() or "git push failed")
+    return committed
+
+
 def demo():
     import tempfile
     d = tempfile.mkdtemp()
@@ -159,7 +190,8 @@ def demo():
 
     path, created = init()
     assert path == Path(os.path.realpath(".git")) / "notes", path
-    assert sorted(created) == sorted(FILES), created
+    assert set(created) == set(FILES) | {"(git repo)"}, created
+    assert (path / ".git").is_dir(), "store must be its own git repo"
 
     # idempotent and non-truncating: the second init must preserve content
     append("nodes.jsonl", {"id": 1, "content": "survivor"})
@@ -214,6 +246,23 @@ def demo():
         raise AssertionError("expected SystemExit")
     except SystemExit as e:
         assert "999" in str(e), e
+
+    # sync: no remote yet -> clear error, not a push into the void
+    try:
+        sync()
+        raise AssertionError("expected SystemExit for missing remote")
+    except SystemExit as e:
+        assert "remote" in str(e), e
+
+    remote_dir = tempfile.mkdtemp()
+    subprocess.run(["git", "init", "-q", "--bare", remote_dir], check=True)
+    subprocess.run(["git", "remote", "add", "origin", remote_dir], cwd=path, check=True)
+
+    assert sync() is True, "first sync must have something to commit"
+    assert sync() is False, "second sync with no changes must be a no-op, not an error"
+    pushed = subprocess.run(["git", "log", "--oneline"], cwd=remote_dir,
+                             capture_output=True, text=True).stdout
+    assert pushed.strip(), "push must have landed on the remote"
 
     print("store: ok")
 
