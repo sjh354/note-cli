@@ -92,6 +92,44 @@ def cmd_goals(args):
             print(f"{n['id']:>4}  {total:.3f}  {n['content']} ({ts})")
 
 
+def cmd_supersede(args):
+    tags = args.tags.split(",") if args.tags else []
+    print(store.supersede(args.id, args.content, type=args.type, tags=tags))
+
+
+def cmd_check(args):
+    """Exit nonzero while any attempt is loose, so a hook or an agent can gate
+    on it rather than trusting itself to remember the loop."""
+    untargeted, unscored = goalmod.unfinished()
+    if not untargeted and not unscored:
+        print("clean: every attempt targets a goal and carries a score")
+        return
+    if untargeted:
+        print("attempts targeting no goal — `note link <id> <goal> --rel targets`:")
+        for n in untargeted:
+            print(_line(n))
+    if unscored:
+        print("attempts with no score — `note score <id> name=0.0-1.0`:")
+        for n in unscored:
+            print(_line(n))
+    raise SystemExit(1)
+
+
+def cmd_status(args):
+    g = goalmod.current_goal()
+    if not g:
+        print("no goal set — run `note goal --set ... --criterion ...`")
+    else:
+        print(g["goal"])
+        denom = sum(c["weight"] for c in g["criteria"])
+        for c in g["criteria"]:
+            print(f"  {c['weight'] / denom:>5.0%}  {c['name']}: {c['rubric']}")
+    print()
+    cmd_goals(args)
+    nodes, edges = _nodes_edges()
+    _print_nodes("\nfrontier:", graphmod.tails(nodes, edges))
+
+
 def cmd_show(args):
     nodes, edges = _nodes_edges()
     by_id = {n["id"]: n for n in nodes}
@@ -207,6 +245,17 @@ def build_parser():
     sc.set_defaults(fn=cmd_score)
 
     sub.add_parser("goals", help="per-goal best attempt").set_defaults(fn=cmd_goals)
+    sub.add_parser("status", help="goal, criteria, best attempts and frontier"
+                   ).set_defaults(fn=cmd_status)
+    sub.add_parser("check", help="exit 1 if any attempt is untargeted or unscored"
+                   ).set_defaults(fn=cmd_check)
+
+    sp = sub.add_parser("supersede", help="correct a node with a new one")
+    sp.add_argument("id", type=int)
+    sp.add_argument("content")
+    sp.add_argument("--type")
+    sp.add_argument("--tags")
+    sp.set_defaults(fn=cmd_supersede)
 
     sh = sub.add_parser("show", help="one node in full")
     sh.add_argument("id", type=int)

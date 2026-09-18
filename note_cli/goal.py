@@ -114,6 +114,28 @@ def rollup():
     return rows, unassigned
 
 
+def unfinished():
+    """Attempts that break the loop, as (untargeted, unscored).
+
+    Only `attempt` nodes are held to it — a decision or a plain note has
+    nothing to score. This is what `note check` exits nonzero on, so a hook
+    or an agent can gate on it instead of trusting itself to remember.
+    """
+    nodes = store.read("nodes.jsonl")
+    edges = store.read("edges.jsonl")
+    latest = latest_scores()
+    targeting = {e["from"] for e in edges if e["relation"] == "targets"}
+    untargeted, unscored = [], []
+    for n in nodes:
+        if n["type"] != "attempt":
+            continue
+        if n["id"] not in targeting:
+            untargeted.append(n)
+        elif n["id"] not in latest:
+            unscored.append(n)
+    return untargeted, unscored
+
+
 def demo():
     import os, subprocess, tempfile
     os.chdir(tempfile.mkdtemp())
@@ -172,6 +194,18 @@ def demo():
     assert node["id"] == g
     assert round(best[0], 9) == 0.3 and best[1] == a1, best   # max; a2 fell on re-score
     assert [u[0]["id"] for u in unassigned] == [orphan], unassigned
+
+    # orphan targets nothing; a1/a2 target g and are scored
+    untargeted, unscored = unfinished()
+    assert [n["id"] for n in untargeted] == [orphan], untargeted
+    assert unscored == [], unscored
+
+    fresh = store.add_node("just tried, not judged yet", type="attempt")
+    store.add_edge(fresh, g, "targets")
+    untargeted, unscored = unfinished()
+    assert [n["id"] for n in untargeted] == [orphan], untargeted
+    assert [n["id"] for n in unscored] == [fresh], unscored
+
     print("goal: ok")
 
 
