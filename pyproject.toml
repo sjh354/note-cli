@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "note-cli"
+version = "0.1.0"
+description = "Decision-graph and goal notebook for a git repo, shared across worktrees"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+note = "note_cli.cli:main"
+
+[tool.setuptools]
+packages = ["note_cli"]
+
+[tool.setuptools.package-data]
+note_cli = ["SKILL.md"]
