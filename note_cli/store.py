@@ -230,6 +230,10 @@ def demo():
     assert path == Path(os.path.realpath(".git")) / "notes", path
     assert set(created) == set(FILES) | {"(git repo)"}, created
     assert (path / ".git").is_dir(), "store must be its own git repo"
+    # the store is a SEPARATE repo from the outer project one above — a CI
+    # runner has no global git identity, so `sync`'s commit needs its own
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=path, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=path, check=True)
 
     # idempotent and non-truncating: the second init must preserve content
     append("nodes.jsonl", {"id": 1, "content": "survivor"})
