@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.1 — 2026-09-18
+
+- **Fixed:** `note graph --limit 0` ignored the limit and rendered every node.
+  `args.limit or DEFAULT_GRAPH_LIMIT` treated `0` as falsy and fell back to
+  the default; `nodes[-limit:]` would have shown everything anyway since
+  `-0 == 0` in Python. Found by an `open-code-review` delegation-mode review
+  of the 0.4.0 diff.
+
 ## 0.4.0 — 2026-09-18
 
 - **The store survives a dead disk.** `note init` now makes the store its own
