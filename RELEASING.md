@@ -81,14 +81,11 @@ wrong one, silently.
        gh run watch --repo sjh354/note-cli
        pip download notegraph==0.3.0 --no-deps -d /tmp/verify
 
-## The first release
+## History
 
-`0.2.0` is bumped and unreleased. Steps 1 and 2 are already done for it —
-`pyproject.toml` says `0.2.0` and `CHANGELOG.md` has a `0.2.0` section that
-needs its date. Start at step 3, and tag `v0.2.0`.
-
-`v0.1.0` is tagged in git but was never published; PyPI starts at `0.2.0`.
-That is fine — PyPI does not care that a number is missing.
+`0.2.0` was the first release published to PyPI. `v0.1.0` is tagged in git but
+was never published, so PyPI starts at `0.2.0` — it does not care that a
+number is missing.
 
 ## When it fails
 

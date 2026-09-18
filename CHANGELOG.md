@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 — unreleased
+## 0.2.0 — 2026-09-18
 
 - `note supersede <id> "content"` — append-only has no edit, so a correction is
   a new node plus `old -superseded_by-> new`. That direction keeps the new node
