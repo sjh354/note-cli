@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — 2026-09-18
 
 - **The store survives a dead disk.** `note init` now makes the store its own
   git repo (separate from the outer project's), and `note sync` commits and
