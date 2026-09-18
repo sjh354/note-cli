@@ -19,6 +19,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: tag must match pyproject version
+        # A version can be uploaded to PyPI exactly once and deleting the
+        # release does not free the number. Without this, a tag that
+        # disagrees with pyproject.toml publishes the wrong version and burns
+        # the right one, with no error anywhere.
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg=$(python -c "import tomllib,pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+          echo "tag=$tag pyproject=$pkg"
+          test "$tag" = "$pkg" || {
+            echo "::error::tag v$tag does not match pyproject.toml version $pkg"
+            exit 1
+          }
       - run: python -m pip install build
       - run: python -m build
+      - name: SKILL.md must be in the wheel
+        # twine check validates metadata, not contents. A wheel missing
+        # SKILL.md breaks `note skill --install` for every user without
+        # failing a single test.
+        run: python -m zipfile -l dist/*.whl | grep -q SKILL.md
       - uses: pypa/gh-action-pypi-publish@release/v1

@@ -48,7 +48,8 @@ wrong one, silently.
 1. Move the unreleased section of `CHANGELOG.md` under the new version with
    today's date.
 2. Bump `version` in `pyproject.toml` **to the same number the tag will use.**
-   Confirm they agree before pushing:
+   The release workflow refuses to publish when they disagree, so a mismatch
+   now costs a failed run rather than a burned version number. Check anyway:
 
        grep '^version' pyproject.toml          # -> version = "0.3.0"
        # the tag must then be exactly v0.3.0
@@ -59,10 +60,9 @@ wrong one, silently.
        python -m note_cli._concurrency_check
        python -m note_cli._cli_check
 
-4. Confirm `SKILL.md` is inside the wheel. **CI does not check this** — its
-   build job runs `twine check`, which validates metadata, not contents. A
-   missing `SKILL.md` breaks `note skill --install` for every user without
-   failing a single test:
+4. Confirm `SKILL.md` is inside the wheel. The `checks` workflow does not —
+   its build job runs `twine check`, which validates metadata, not contents.
+   The `release` workflow now does, and refuses to publish without it:
 
        python -m build
        python -m twine check dist/*
